@@ -45,12 +45,6 @@ def making_text_for_tg(ls: list, date_statement='1 января 1970'):
     return text
 
 
-if not os.path.isdir(download_folder):
-    os.makedirs(download_folder, exist_ok=True)
-if not os.path.isdir(download_folder):
-    os.makedirs(maked_folder, exist_ok=True)
-
-
 def conect_read_download():
     mail = Imbox(host, username=username, password=password, ssl=True, ssl_context=None, starttls=False)
     # messages = mail.messages() # defaults to inbox
@@ -99,11 +93,16 @@ def parsexl_movexl():
 
 
 def main():
+    if not os.path.isdir(download_folder):
+        os.makedirs(download_folder, exist_ok=True)
+    if not os.path.isdir(maked_folder):
+        os.makedirs(maked_folder, exist_ok=True)
     conect_read_download()
     # input()
     ls, date = parsexl_movexl()
     if len(ls) == 0:
         print('Нет данных')
+        send_telegram('Не удалось получить данные по рассчетному счету')
     else:
         print('OK')
         text = making_text_for_tg(ls, date_statement=date)
