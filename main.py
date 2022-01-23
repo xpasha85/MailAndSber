@@ -102,7 +102,7 @@ def main():
     ls, date = parsexl_movexl()
     if len(ls) == 0:
         print('Нет данных')
-        send_telegram('Не удалось получить данные по рассчетному счету')
+        send_telegram('Не удалось получить данные по расчетному счету')
     else:
         print('OK!!!')
         text = making_text_for_tg(ls, date_statement=date)
