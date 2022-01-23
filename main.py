@@ -104,7 +104,7 @@ def main():
         print('Нет данных')
         send_telegram('Не удалось получить данные по рассчетному счету')
     else:
-        print('OK')
+        print('OK!!!')
         text = making_text_for_tg(ls, date_statement=date)
         # print(text)
         send_telegram(text)
