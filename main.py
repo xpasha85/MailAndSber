@@ -3,10 +3,13 @@ from imbox import Imbox
 import traceback
 from openpyxl import load_workbook
 import requests
+import zipfile
+
 
 host = "imap.gmail.com"
 username = "mailforsber@gmail.com"
 password = 'SZF-in6-8hu-M9c'
+sender = 'sbbol@sberbank.ru'
 download_folder = "data"
 maked_folder = 'maked'
 
@@ -48,20 +51,26 @@ def making_text_for_tg(ls: list, date_statement='1 января 1970'):
 def conect_read_download():
     mail = Imbox(host, username=username, password=password, ssl=True, ssl_context=None, starttls=False)
     # messages = mail.messages() # defaults to inbox
-    messages = mail.messages(unread=True, sent_from='xpasha85@gmail.com')
+    messages = mail.messages(unread=True, sent_from=sender)
 
     for (uid, message) in messages:
         mail.mark_seen(uid)  # optional, mark message as read
-
-        for idx, attachment in enumerate(message.attachments):
-            try:
-                att_fn = attachment.get('filename')
-                download_path = f"{download_folder}/{att_fn}"
-                print(download_path)
-                with open(download_path, "wb") as fp:
-                    fp.write(attachment.get('content').read())
-            except:
-                print(traceback.print_exc())
+        url = str(message).split('n<a href="')[1].split('" style="text-decoration: none')[0].strip()
+        r = requests.get(url)
+        with open('file.zip', 'wb') as f:
+            f.write(r.content)
+        archive = zipfile.ZipFile('file.zip', 'r')
+        archive.extractall('data')
+        # os.remove('file.zip')
+        # for idx, attachment in enumerate(message.attachments):
+        #     try:
+        #         att_fn = attachment.get('filename')
+        #         download_path = f"{download_folder}/{att_fn}"
+        #         print(download_path)
+        #         with open(download_path, "wb") as fp:
+        #             fp.write(attachment.get('content').read())
+        #     except:
+        #         print(traceback.print_exc())
 
     mail.logout()
 
@@ -80,6 +89,8 @@ def parsexl_movexl():
             cell2 = f'U{row}'
             if sheet[cell1].value is None:
                 break
+            if str(sheet[cell2].value).find('Комиссия') == -1:
+                continue
 
             summ = float(sheet[cell1].value)
             fee = float(sheet[cell2].value.split('Комиссия')[1].split('Возврат')[0].strip()[:-1].replace(',', ''))
@@ -106,7 +117,7 @@ def main():
     else:
         print('OK!!')
         text = making_text_for_tg(ls, date_statement=date)
-        # print(text)
+        #print(text)
         send_telegram(text)
 
 
