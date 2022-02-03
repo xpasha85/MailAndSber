@@ -5,7 +5,6 @@ from openpyxl import load_workbook
 import requests
 import zipfile
 
-
 host = "imap.gmail.com"
 username = "mailforsber@gmail.com"
 password = 'SZF-in6-8hu-M9c'
@@ -42,9 +41,9 @@ def making_text_for_tg(ls: list, date_statement='1 января 1970'):
         it_fee += fee
         text += f'{count}. На Р/С: {summ}, комиссия: {fee}, сверка: {round(summ + fee, 2)} \n'
         count += 1
-
+    percent = round(it_fee * 100 / it_summ, 2)
     text += f'\nИтого поступило на Р/С: {round(it_summ, 2)} руб. \n'
-    text += f'Итого комиссия: {round(it_fee, 2)} руб.'
+    text += f'Итого комиссия: {round(it_fee, 2)} руб. ({percent}%)'
     return text
 
 
@@ -117,7 +116,7 @@ def main():
     else:
         print('OK!!')
         text = making_text_for_tg(ls, date_statement=date)
-        #print(text)
+        # print(text)
         send_telegram(text)
 
 
