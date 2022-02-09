@@ -4,6 +4,7 @@ import traceback
 from openpyxl import load_workbook
 import requests
 import zipfile
+from loguru import logger
 
 host = "imap.gmail.com"
 username = "mailforsber@gmail.com"
@@ -12,8 +13,11 @@ sender = 'sbbol@sberbank.ru'
 download_folder = "data"
 maked_folder = 'maked'
 
+logger.add('logs\\logs.txt', format="{time: DD-MM-YY  HH:mm:ss} {level} "
+                                    "{module}:{function}:{line} - {message}")
 
 def send_telegram(text: str):
+    logger.info('###### Отправляем в телегу ######')
     token = "1907792666:AAHd1zArB4V8tmG8ek8UveFKe12FtjvACeI"
     url = "https://api.telegram.org/bot"
     channel_id = "667290393"
@@ -26,6 +30,7 @@ def send_telegram(text: str):
     })
 
     if r.status_code != 200:
+        logger.error('Ошибка отправки')
         raise Exception("post_text error")
 
 
@@ -48,17 +53,21 @@ def making_text_for_tg(ls: list, date_statement='1 января 1970'):
 
 
 def conect_read_download():
+    logger.info('###### Старт функции connect_read_download ######')
     mail = Imbox(host, username=username, password=password, ssl=True, ssl_context=None, starttls=False)
     # messages = mail.messages() # defaults to inbox
+    logger.info('Получаем письма')
     messages = mail.messages(unread=True, sent_from=sender)
 
     for (uid, message) in messages:
         mail.mark_seen(uid)  # optional, mark message as read
         url = str(message).split('n<a href="')[1].split('" style="text-decoration: none')[0].strip()
+        logger.info(f'Переходим по URL: {url}')
         r = requests.get(url)
         with open('file.zip', 'wb') as f:
             f.write(r.content)
         archive = zipfile.ZipFile('file.zip', 'r')
+        logger.info('Распаковываем в папку data')
         archive.extractall('data')
         # os.remove('file.zip')
         # for idx, attachment in enumerate(message.attachments):
@@ -75,11 +84,13 @@ def conect_read_download():
 
 
 def parsexl_movexl():
+    logger.info('###### Начало парсинга файла ######')
     files = os.listdir('data')
     ls = []
     date = '@нет данных@'
     if len(files) != 0:
         wb = load_workbook(filename=f'{download_folder}/{files[0]}')
+        logger.info('Загружаем книгу')
         wb.active = 0
         sheet = wb.active
         date = str(sheet['M8'].value).split('счету ')[1].strip()[:-1]
@@ -98,6 +109,7 @@ def parsexl_movexl():
                  'fee': fee
                  }
             )
+        logger.info('Перемещаем файл')
         os.replace(f'{download_folder}/{files[0]}', f'{maked_folder}/{files[0]}')
     return ls, date
 
@@ -107,6 +119,7 @@ def main():
         os.makedirs(download_folder, exist_ok=True)
     if not os.path.isdir(maked_folder):
         os.makedirs(maked_folder, exist_ok=True)
+
     conect_read_download()
     # input()
     ls, date = parsexl_movexl()
