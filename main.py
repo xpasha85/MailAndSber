@@ -5,6 +5,7 @@ from openpyxl import load_workbook
 import requests
 import zipfile
 from loguru import logger
+from prettytable import PrettyTable
 
 host = "imap.gmail.com"
 username = "mailforsber@gmail.com"
@@ -16,6 +17,7 @@ maked_folder = 'maked'
 logger.add('logs\\logs.txt', format="{time: DD-MM-YY  HH:mm:ss} {level} "
                                     "{module}:{function}:{line} - {message}")
 
+
 def send_telegram(text: str):
     logger.info('###### Отправляем в телегу ######')
     token = "1907792666:AAHd1zArB4V8tmG8ek8UveFKe12FtjvACeI"
@@ -26,7 +28,8 @@ def send_telegram(text: str):
 
     r = requests.post(method, data={
         "chat_id": channel_id,
-        "text": text
+        "text": text,
+        "parse_mode": "html"
     })
 
     if r.status_code != 200:
@@ -34,22 +37,44 @@ def send_telegram(text: str):
         raise Exception("post_text error")
 
 
-def making_text_for_tg(ls: list, date_statement='1 января 1970'):
-    text = f'Данные по эквайрингу за {date_statement}:\n'
-    count = 1
+def making_text_for_tg(ls: list):
+    # ------ новое форматирование ------------
+    mytable = PrettyTable()
+    mytable.field_names = mytable.field_names = ["Р/C", "%", "Сверка"]
     it_summ = 0
     it_fee = 0
+    date_sravnenie = ls[0]['date']
+    text = f'Данные по эквайрингу за {date_sravnenie}:\n'
     for item in ls:
+        date_operation = item['date']
         summ = item['summ']
         fee = item['fee']
-        it_summ += summ
-        it_fee += fee
-        text += f'{count}. На Р/С: {summ}, комиссия: {fee}, сверка: {round(summ + fee, 2)} \n'
-        count += 1
-    percent = round(it_fee * 100 / it_summ, 2)
-    text += f'\nИтого поступило на Р/С: {round(it_summ, 2)} руб. \n'
-    text += f'Итого комиссия: {round(it_fee, 2)} руб. ({percent}%)'
-    return text
+        if date_operation == date_sravnenie:
+            mytable.add_row([summ, fee, round(summ + fee, 2)])
+            it_summ += summ
+            it_fee += fee
+            #text += f'{count}. На Р/С: {summ}, комиссия: {fee}, сверка: {round(summ + fee, 2)} \n'
+        else:
+            text = text + '<pre>' + mytable.get_string() + '</pre>'
+            percent = round(it_fee * 100 / it_summ, 2)
+            text += f'\nИтого поступило на Р/С: {round(it_summ, 2)} руб. \n'
+            text += f'Итого комиссия: {round(it_fee, 2)} руб. ({percent}%) \n\n'
+            mytable.clear_rows()
+            it_summ = summ
+            it_fee = fee
+            date_sravnenie = date_operation
+            mytable.add_row([summ, fee, round(summ + fee, 2)])
+            text = text + f'Данные по эквайрингу за {date_sravnenie}:\n'
+    else:
+        text = text + '<pre>' + mytable.get_string() + '</pre> '
+        percent = round(it_fee * 100 / it_summ, 2)
+        text += f'\nИтого поступило на Р/С: {round(it_summ, 2)} руб. \n'
+        text += f'Итого комиссия: {round(it_fee, 2)} руб. ({percent}%) \n'
+
+
+    text2 = text
+
+    return text2
 
 
 def conect_read_download():
@@ -60,7 +85,7 @@ def conect_read_download():
     messages = mail.messages(unread=True, sent_from=sender)
 
     for (uid, message) in messages:
-        mail.mark_seen(uid)  # optional, mark message as read
+        # mail.mark_seen(uid)  # optional, mark message as read
         url = str(message).split('n<a href="')[1].split('" style="text-decoration: none')[0].strip()
         logger.info(f'Переходим по URL: {url}')
         r = requests.get(url)
@@ -104,14 +129,16 @@ def parsexl_movexl():
 
             summ = float(sheet[cell1].value)
             fee = float(sheet[cell2].value.split('Комиссия')[1].split('Возврат')[0].strip()[:-1].replace(',', ''))
+            date_operation = sheet[cell2].value.split('Дата реестра ')[1].split('. Комиссия')[0].strip()
             ls.append(
                 {'summ': summ,
-                 'fee': fee
+                 'fee': fee,
+                 'date': date_operation
                  }
             )
         logger.info('Перемещаем файл')
         os.replace(f'{download_folder}/{files[0]}', f'{maked_folder}/{files[0]}')
-    return ls, date
+    return ls
 
 
 def main():
@@ -122,13 +149,13 @@ def main():
 
     conect_read_download()
     # input()
-    ls, date = parsexl_movexl()
+    ls = parsexl_movexl()
     if len(ls) == 0:
         print('Нет данных')
         send_telegram('Не удалось получить данные по расчетному счету')
     else:
         print('OK!!')
-        text = making_text_for_tg(ls, date_statement=date)
+        text = making_text_for_tg(ls)
         # print(text)
         send_telegram(text)
 
