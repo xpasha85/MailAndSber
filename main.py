@@ -85,7 +85,7 @@ def conect_read_download():
     messages = mail.messages(unread=True, sent_from=sender)
 
     for (uid, message) in messages:
-        # mail.mark_seen(uid)  # optional, mark message as read
+        mail.mark_seen(uid)  # optional, mark message as read
         url = str(message).split('n<a href="')[1].split('" style="text-decoration: none')[0].strip()
         logger.info(f'Переходим по URL: {url}')
         r = requests.get(url)
